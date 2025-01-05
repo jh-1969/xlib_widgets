@@ -4,7 +4,7 @@
 #include <poll.h>
 #include <stdlib.h>
 #include <sys/poll.h>
-#include <time.h>
+#include <sys/time.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -20,8 +20,11 @@ static_create_window(XlibWrapper* xlib_wrapper, XlibWrapperWindowOptions* window
 static GC
 static_create_gc(XlibWrapper* xlib_wrapper);
 
-static void
+static int 
 static_handle_event(XlibWrapper* xlib_wrapper, XEvent ev);
+
+static long long
+static_time_milliseconds();
 
 
 
@@ -45,6 +48,10 @@ struct XlibWrapper_s {
     uint16_t callbacksCount;
 
     struct pollfd fds;
+    
+    uint16_t timeToClose;
+    uint16_t timeToCloseMax;
+    long long timePollCalled;
 };
 
 
@@ -74,13 +81,16 @@ xlib_wrapper_init(XlibWrapperWindowOptions* window_options) {
 
     xlib_wrapper->fds.fd = XConnectionNumber(xlib_wrapper->d);
     xlib_wrapper->fds.events = POLLIN;
+    
+    xlib_wrapper->timeToClose = 1500;
+    xlib_wrapper->timeToCloseMax = 1500;
 
     return xlib_wrapper;
 }
 
 void
 xlib_wrapper_set_font(XlibWrapper* xlib_wrapper, const char* font_name) {
-    xlib_wrapper->font = XLoadFont(xlib_wrapper->d, font_name);
+    xlib_wrapper->font = XLoadFont(xlib_wrapper->d, "a14");
     //i dont know how to check for bad name with XLoadFont
     //XQueryFont and XLoadQueryFont causes a seg fault ???
     //
@@ -96,15 +106,26 @@ xlib_wrapper_draw_string(XlibWrapper* xlib_wrapper,
 
 int
 xlib_wrapper_loop(XlibWrapper* xlib_wrapper) {
-    int poll_ret = poll(&xlib_wrapper->fds, 1, 1500);
+    xlib_wrapper->timePollCalled = static_time_milliseconds();
+    int poll_ret = poll(&xlib_wrapper->fds, 1, xlib_wrapper->timeToClose);
     
     if(poll_ret <= 0)
         return 0;
     else {
+        int pressed = 0;
+
         while(XPending(xlib_wrapper->d) > 0) {
             XEvent ev;
             XNextEvent(xlib_wrapper->d, &ev);
-            static_handle_event(xlib_wrapper, ev);
+            
+            pressed = static_handle_event(xlib_wrapper, ev);
+        }
+        
+        if(pressed) {
+            xlib_wrapper->timeToClose = xlib_wrapper->timeToCloseMax;
+        } else {
+            xlib_wrapper->timeToClose -=
+                (static_time_milliseconds() - xlib_wrapper->timePollCalled);
         }
 
         XFlush(xlib_wrapper->d);
@@ -203,8 +224,10 @@ static_create_gc(XlibWrapper* xlib_wrapper) {
     return gc;
 }
 
-static void
+static int
 static_handle_event(XlibWrapper* xlib_wrapper, XEvent ev) {
+    int pressed = 0;
+
     switch(ev.type) {
         case FocusOut:
             if (xlib_wrapper->focused != xlib_wrapper->root)
@@ -222,8 +245,18 @@ static_handle_event(XlibWrapper* xlib_wrapper, XEvent ev) {
             for(int i = 0; i < xlib_wrapper->callbacksCount; i++) {
                 if(ev.xkey.keycode == xlib_wrapper->callbacks[i].keycode) {
                     xlib_wrapper->callbacks[i].func(xlib_wrapper->callbacks[i].args);
+                    pressed = 1;
                 }
             }
         break;
     }
+
+    return pressed;
+}
+
+static long long static_time_milliseconds() {
+    struct timeval tv;
+
+    gettimeofday(&tv,NULL);
+    return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
 }
