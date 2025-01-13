@@ -51,7 +51,7 @@ struct XlibWrapper_s {
 
 XlibWrapper*
 xlib_wrapper_init(XlibWrapperOptions* options) {
-    XlibWrapper* xlib_wrapper;
+    XlibWrapper* xlib_wrapper = malloc(sizeof(XlibWrapper));
     
     xlib_wrapper->d = XOpenDisplay(NULL);
     xlib_wrapper->root = DefaultRootWindow(xlib_wrapper->d);
@@ -149,6 +149,8 @@ xlib_wrapper_destroy(XlibWrapper* xlib_wrapper) {
 
     XUnmapWindow(xlib_wrapper->d, xlib_wrapper->win);
     XCloseDisplay(xlib_wrapper->d);
+
+    free(xlib_wrapper);
 }
 
 void

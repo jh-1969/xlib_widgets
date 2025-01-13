@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #define WIDTH 130
@@ -60,7 +58,7 @@ void change(const char* args) {
     free(str);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     FILE* fp;
     char path[4];
 
@@ -73,7 +71,7 @@ int main() {
     
     fscanf(fp, "%d", &percentage); 
     pclose(fp);
-    
+        
     XlibWrapperOptions options = {
         .winWidth = WIDTH,
         .winHeight = HEIGHT,

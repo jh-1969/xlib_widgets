@@ -60,7 +60,14 @@ void change(const char* args) {
     free(str);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    if(argc < 2) {
+        printf("arguments missing\n");
+        exit(EXIT_FAILURE);
+    }
+
+    system("pkill sxhkd; sxhkd -c /home/jh/.config/sxhkd/sxhkdrc_widgetless &");
+
     FILE* fp;
     char path[4];
 
@@ -80,13 +87,12 @@ int main() {
         .winOffLeft = 20,
         .winOffTop = 20,
 
-        .closeAfterIdleForMiliseconds = 1500,
+        .closeAfterIdleForMiliseconds = 500,
 
         .backgroundColor = 0x232323 
     };
-    
+
     xlibWrapper = xlib_wrapper_init(&options);
-    
     xlib_wrapper_add_callback(xlibWrapper, "u", "F6", change);
     xlib_wrapper_add_callback(xlibWrapper, "d", "F5", change);
     
@@ -94,18 +100,17 @@ int main() {
 
     xlib_wrapper_set_foreground(xlibWrapper, 0xaeadaf);
     xlib_wrapper_draw_string(xlibWrapper, "brightness", 10, 10, 20);
-    
-    int len = 0;
-    char* str = percentage_to_string(percentage, &len);
-    xlib_wrapper_draw_string(xlibWrapper, str, len, 89, 20);
-    free(str);
-
     xlib_wrapper_draw_rectangle(xlibWrapper, 0, 0, WIDTH, HEIGHT);
+    
+    change(argv[1]);
+
     xlib_wrapper_flush(xlibWrapper);
 
     while(xlib_wrapper_loop(xlibWrapper));
 
     xlib_wrapper_destroy(xlibWrapper);
-    
+
+    system("pkill sxhkd; sxhkd &");
+   
     return 0;
 }
